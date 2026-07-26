@@ -368,6 +368,84 @@ GOOGLE_API_KEY=...
 XAI_API_KEY=...
 ```
 
+### 使用 OpenAI-compatible API 地址和模型
+
+如果使用的是 LM Studio、vLLM、LiteLLM，或云厂商提供的 **OpenAI-compatible API**，不必把请求固定发往 OpenAI 官方地址。Mastra 的 `model` 可以写成对象，在其中指定模型路由 ID、API Base URL 和密钥。
+
+先在 `.env` 中保存配置：
+
+```bash
+# 必须是 API 的基础地址，通常以 /v1 结尾
+OPENAI_COMPATIBLE_BASE_URL=https://api.example.com/v1
+OPENAI_COMPATIBLE_API_KEY=你的密钥
+
+# 服务端 /v1/models 返回的模型 id
+OPENAI_COMPATIBLE_MODEL_ID=qwen-plus
+```
+
+然后修改 Agent，例如 `src/mastra/agents/agent.ts`：
+
+```typescript
+import { Agent } from '@mastra/core/agent'
+
+export const agent = new Agent({
+  id: 'openai-compatible-agent',
+  name: 'OpenAI-compatible Agent',
+  instructions: '你是一个有帮助的中文助手。',
+  model: {
+    // 前缀用于 Mastra 路由；真正发给直连服务的是后面的模型名
+    id: `custom/${process.env.OPENAI_COMPATIBLE_MODEL_ID}`,
+    url: process.env.OPENAI_COMPATIBLE_BASE_URL!,
+    apiKey: process.env.OPENAI_COMPATIBLE_API_KEY!,
+  },
+})
+```
+
+> `url` 应填写 OpenAI-compatible **基础地址**（如 `https://api.example.com/v1`），不要填写具体的 `/chat/completions` 地址。修改 `.env` 后需重启 `npm run dev`。
+
+#### 查询服务端支持的模型列表
+
+OpenAI-compatible 服务通常通过 `GET /v1/models` 返回模型列表。若 Base URL 已包含 `/v1`，可以这样查询：
+
+```bash
+curl -sS \
+  -H "Authorization: Bearer $OPENAI_COMPATIBLE_API_KEY" \
+  "$OPENAI_COMPATIBLE_BASE_URL/models"
+```
+
+安装了 `jq` 时，只显示模型 ID：
+
+```bash
+curl -sS \
+  -H "Authorization: Bearer $OPENAI_COMPATIBLE_API_KEY" \
+  "$OPENAI_COMPATIBLE_BASE_URL/models" |
+  jq -r '.data[].id'
+```
+
+把返回的某个 `id`（例如 `qwen-plus`）写入 `OPENAI_COMPATIBLE_MODEL_ID`。如果服务不需要鉴权，可去掉 `Authorization` 请求头；如果厂商没有实现 `/models`，则以其控制台或文档公布的模型 ID 为准。
+
+#### `model.id` 应该怎样写
+
+- **直连模型服务**：使用 `provider/model`，例如 `custom/qwen-plus`、`lmstudio/qwen/qwen3-30b-a3b-2507`。远端通常收到斜杠后面的裸模型名。
+- **模型网关**：若远端要求保留上游提供商命名空间，则使用 `gateway/provider/model`，例如 `openrouter/google/gemini-2.5-flash`。
+
+本地 LM Studio 的完整示例：
+
+```typescript
+model: {
+  id: 'lmstudio/qwen/qwen3-30b-a3b-2507',
+  url: 'http://localhost:1234/v1',
+}
+```
+
+LM Studio 等无需鉴权的本地服务可以省略 `apiKey`。可用下面的命令查看其模型列表：
+
+```bash
+curl -sS http://localhost:1234/v1/models | jq -r '.data[].id'
+```
+
+Mastra 自带的模型目录则用于查询已收录的提供商及模型字符串：打开 [Model Providers](https://mastra.ai/models)，或在 Agent 的 `model` 字段中使用 IDE 自动补全。开发环境默认每小时刷新一次本地模型目录；如需关闭，可设置 `MASTRA_AUTO_REFRESH_PROVIDERS=false`。这里的目录与自建服务的 `/v1/models` 含义不同：前者是 Mastra 支持的提供商目录，后者是你的兼容端点实际开放的模型列表。
+
 ---
 
 ## 1.5 启动 Studio 并完成第一次对话
@@ -790,7 +868,81 @@ Agent 适合「步骤事先不知道」的开放任务；流程固定时用 [Wor
 | `getAgent` / `getAgentById` 找不到 | 传了注册键名却用了 id，或反过来 | `getAgentById('hello-agent')` 用构造函数里的 `id` |
 | TS 解析报错 | `moduleResolution` 过旧 | 按 1.6 的 `tsconfig` 改 |
 | 模型字符串无效 | 用了 `:` 或错误 id | 用 `openai/gpt-5.5` 这种 `/` 形式；在 [Models](https://mastra.ai/models) 核对 |
+| Studio 中消息偶尔没有回复 | Observational Memory 缺少 `threadId`、上下文过重，或旧 thread 留有中断状态 | 先关闭 `observationalMemory`，重启服务并新建 Chat；再查看 Logs / Traces |
 | 依赖安装超时 | 网络慢 | `npx create-mastra@latest my-app -- --llm openai --timeout 120000` |
+
+### Studio 消息无响应：关闭 Observational Memory
+
+Agent Harness 模板可能启用了 Observational Memory：
+
+```typescript
+memory: new Memory({
+  options: {
+    generateTitle: true,
+    observationalMemory: {
+      model: compatibleModel,
+    },
+  },
+}),
+```
+
+Observational Memory 是额外的输入处理器。它会基于 thread 维护观察记录，也会增加额外的模型调用和上下文。当 Studio 新建、切换或恢复会话时没有正确传入 `threadId`，服务端可能报：
+
+```text
+ObservationalMemory (scope: 'thread') requires a threadId
+```
+
+此时请求会返回 500；Studio 有时只留下用户消息，看起来像「发送后一直没有响应」。
+
+排查时可以先删除 `observationalMemory` 配置，保留普通 Memory：
+
+```typescript
+import { Memory } from '@mastra/memory'
+
+export const agent = new Agent({
+  // ...id、name、instructions、model 等配置
+  memory: new Memory({
+    options: {
+      generateTitle: true,
+      // 不配置 observationalMemory，即为关闭
+    },
+  }),
+})
+```
+
+也可以进一步简化为：
+
+```typescript
+memory: new Memory(),
+```
+
+如果暂时完全不需要跨轮对话记忆，则从 `new Agent({...})` 中删除整个 `memory` 字段，并移除未使用的 `Memory` import。
+
+修改后执行：
+
+```bash
+# 先停止正在运行的开发服务：Ctrl+C
+npm run dev
+```
+
+然后在 Studio 中点击 **New Chat**，不要继续复用已经失败或中断的旧 thread。依次测试：
+
+1. `只回复 OK`：确认基础文本流稳定。
+2. 连续发送两条有关联的问题：确认普通 Memory 正常。
+3. 再测试工具调用，并在 **Logs / Traces** 中检查是否有 500、超时或未完成的 tool call。
+
+如果关闭后恢复稳定，说明问题位于 Observational Memory 或 thread 上下文，而不是基础模型 API。稳定运行后仍可重新启用它，但必须保证所有代码调用都传入有效的 memory thread 和 resource：
+
+```typescript
+const response = await agent.generate('你好', {
+  memory: {
+    thread: 'thread-123',
+    resource: 'user-123',
+  },
+})
+```
+
+> 对 OpenAI-compatible 网关做排查时，应分别测试基础 `/chat/completions` 流式请求和完整 Agent 请求。基础请求正常不代表 Memory processor、工具调用和 Studio thread 订阅一定正常。若简单消息也携带上万 token，可暂时减少 workspace tools、降低 `maxSteps`（例如从 `100` 调到 `10`），再逐项恢复能力。
 
 本地用 CLI 快速打 API（需先 `npm run dev`）：
 
