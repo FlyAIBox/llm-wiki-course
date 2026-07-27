@@ -353,17 +353,15 @@ openkb query "这篇论文的主要结论是什么？"
 
 #### 第四步：在 OpenKB Studio 中检查结果
 
-安装 Web 版本并运行 `openkb-web` 后，打开：
+安装 Web 版本（具体参考下文）并运行 `openkb-web` 后，打开：
 
 ```text
 http://127.0.0.1:7566/#/kb/my-kb
 ```
 
-页面会显示本次知识编译的统计结果：1 个索引、3 个概念、11 个实体、
-1 个摘要和 1 个已编译文档。索引页还会列出论文摘要、概念和实体之间
-的链接。
+页面会显示本次知识编译的统计结果：1 个索引、3 个概念、11 个实体、1 个摘要和 1 个已编译文档。索引页还会列出论文摘要、概念和实体之间的链接。
 
-![OpenKB Studio 中的 my-kb 知识库页面](assets/openkb-studio-my-kb.jpg)
+![image-20260727222326395](https://cdn.jsdelivr.net/gh/Fly0905/note-picture@main/mag/image-20260727222326395.png)
 
 从页面结果可以确认，OpenKB 并不是只保存原始 PDF。它已经把论文编译成
 一个可浏览、可互链、可继续查询的 Markdown Wiki。
@@ -427,6 +425,8 @@ openkb visualize
 ```text
 output/visualize/graph.html
 ```
+
+![image-20260727223551300](https://cdn.jsdelivr.net/gh/Fly0905/note-picture@main/mag/image-20260727223551300.png)
 
 从知识库生成 Agent Skill：
 
@@ -494,6 +494,7 @@ openkb-web --help
 启动服务：
 
 ```bash
+conda activate openkb
 openkb-web
 ```
 
@@ -502,6 +503,10 @@ openkb-web
 ```text
 http://127.0.0.1:7566/
 ```
+
+![image-20260727224212550](https://cdn.jsdelivr.net/gh/Fly0905/note-picture@main/mag/image-20260727224212550.png)
+
+![image-20260727222233273](https://cdn.jsdelivr.net/gh/Fly0905/note-picture@main/mag/image-20260727222233273.png)
 
 本地模式默认不启用认证。如果服务要监听非本机地址或通过网络暴露，务必先设置令牌：
 
@@ -515,6 +520,8 @@ openkb-web
 ```text
 http://127.0.0.1:7566/docs
 ```
+
+![image-20260727222418012](https://cdn.jsdelivr.net/gh/Fly0905/note-picture@main/mag/image-20260727222418012.png)
 
 ## 10. 生成文件与 Obsidian
 
