@@ -242,6 +242,132 @@ openkb add "https://arxiv.org/pdf/2509.11420"
 openkb query "这篇论文的主要结论是什么？"
 ```
 
+### 7.1 实战：导入一篇 arXiv 论文并查询
+
+下面以 arXiv 论文 `2509.11420` 为例，完整演示“空知识库查询 → 在线导入
+→ Wiki 编译 → 再次查询 → Web 页面检查”的过程。
+
+#### 第一步：在导入前查询
+
+先直接提问：
+
+```bash
+openkb query "这篇论文的主要结论是什么？"
+```
+
+此时 OpenKB 会先读取 `wiki/index.md`。由于知识库中还没有可用文档，它会
+提示无法确定所指论文：
+
+```text
+我先查看索引，确定知识库中有哪些论文可供定位。
+  · read_file({"path":"index.md"})
+
+我无法确定你指的是哪篇论文。当前知识库索引中没有可用文档或论文信息，
+因此无法概括其主要结论。
+```
+
+这个结果是正常的。`openkb query` 只会基于已经编译到当前知识库中的内容
+回答，不会自动把问题中的论文从互联网下载下来。
+
+#### 第二步：从 URL 导入论文
+
+执行：
+
+```bash
+openkb add "https://arxiv.org/pdf/2509.11420"
+```
+
+实际运行过程如下（耗时信息略有精简）：
+
+```text
+Downloading: https://arxiv.org/pdf/2509.11420
+  Saved: raw/2509.11420v1.pdf (2.1 MB PDF)
+Adding: 2509.11420v1.pdf
+  Long document detected — indexing with PageIndex...
+start find_toc_pages
+no toc found
+process_no_toc
+Document validation: 58 pages, max allowed index: 58
+accuracy: 100.00%
+  Compiling long doc (doc_id=8b4c0677-cb61-46a1-a9b6-6f1530e335dd)...
+    overview......................................... 41.4s
+    concepts-plan........... 11.4s
+    Generating 3 concept(s) (concurrency=5)...
+    Generating 11 entity(ies) (concurrency=5)...
+  [OK] 2509.11420v1.pdf added to knowledge base.
+```
+
+这段日志对应以下处理流程：
+
+1. 下载 PDF，并保存到 `raw/2509.11420v1.pdf`；
+2. 检测到文档共有 58 页，达到长文档阈值；
+3. PageIndex 在没有目录页的情况下自动分析文档结构；
+4. OpenKB 生成论文概览和摘要页；
+5. 规划并生成 3 个概念页面；
+6. 提取并生成 11 个实体页面；
+7. 更新 `wiki/index.md` 和知识库注册信息。
+
+本次生成的 3 个概念包括强化学习对齐、LLM 金融交易和金融大语言模型；
+11 个实体包括 Trading-R1、Tauric Research、Qwen3-4B、OpenAI、
+Microsoft、SEC EDGAR、FRED、Yahoo Finance 等。
+
+> 日志里的 `no toc found` 不是失败。它表示 PageIndex 没找到可直接使用的
+> 目录页，随后使用 `process_no_toc` 自动推断结构。最终出现 `[OK]` 才是
+> 本次导入成功的判断依据。
+
+#### 第三步：再次查询
+
+导入完成后执行相同问题：
+
+```bash
+openkb query "这篇论文的主要结论是什么？"
+```
+
+这一次，OpenKB 先从索引定位到唯一论文，再读取其摘要：
+
+```text
+我先查看知识库索引，确认有哪些论文可供定位。
+  · read_file({"path":"index.md"})
+
+索引中只有一篇论文，我将读取其摘要页来提炼主要结论。
+  · read_file({"path":"summaries/2509-11420v1.md"})
+```
+
+回答可归纳为五点：
+
+1. **整体表现优于多数基线**：Trading-R1 在论文回测中通常取得更好的
+   累计收益和 Sharpe Ratio，同时控制最大回撤。
+2. **结构化推理与强化学习有效**：先学习专业投资报告式的论证，再根据
+   市场结果奖励优化买卖决策，比单纯提示或单阶段训练更有效。
+3. **波动率感知标签更贴近交易**：模型根据 3、7、15 天收益及滚动波动率，
+   输出 Strong Sell、Sell、Hold、Buy、Strong Buy 五类动作，而不是直接
+   预测精确价格。
+4. **定位是研究辅助工具**：Trading-R1 更适合市场摘要、结构化研究报告
+   和投资决策支持，并非用来完全替代交易员。
+5. **回测结论存在边界**：市场噪声、模型幻觉、蓝筹股样本以及偏牛市的
+   训练区间，都可能造成偏差；历史回测不能保证未来盈利。
+
+一句话概括：Trading-R1 证明了通过金融领域 SFT、结构化推理蒸馏、
+波动率感知标签和强化学习，可以让小型 LLM 生成可解释、风险感知的交易
+建议，但它仍应被视为金融研究助手。
+
+#### 第四步：在 OpenKB Studio 中检查结果
+
+安装 Web 版本并运行 `openkb-web` 后，打开：
+
+```text
+http://127.0.0.1:7566/#/kb/my-kb
+```
+
+页面会显示本次知识编译的统计结果：1 个索引、3 个概念、11 个实体、
+1 个摘要和 1 个已编译文档。索引页还会列出论文摘要、概念和实体之间
+的链接。
+
+![OpenKB Studio 中的 my-kb 知识库页面](assets/openkb-studio-my-kb.jpg)
+
+从页面结果可以确认，OpenKB 并不是只保存原始 PDF。它已经把论文编译成
+一个可浏览、可互链、可继续查询的 Markdown Wiki。
+
 保存查询结果：
 
 ```bash
