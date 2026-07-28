@@ -14,7 +14,9 @@ OpenKB 是一个开源的 LLM 知识库工具。它会把 PDF、Word、Markdown�
 - 生成知识图谱、Agent Skill 和 HTML 幻灯片；
 - 通过本地 Web UI 浏览、上传和查询资料。
 
-OpenKB 在导入文档时会调用 LLM，因此除了安装软件，还需要准备受支持模型的 API Key，或者使用支持 OAuth 的模型提供商。
+OpenKB 在导入文档时会调用 LLM，因此除了安装软件，还需要准备模型的 API Key，或者使用支持 OAuth 的模型提供商。
+
+![图1：OpenKB 能力全景图](https://cdn.jsdelivr.net/gh/Fly0905/note-picture@main/mag/d1_overview.png)
 
 ## 2. 环境要求
 
@@ -95,6 +97,8 @@ cd OpenKB
 python -m pip install -e .
 ```
 
+![图2：安装路径决策图](d2_install.png)
+
 ## 4. 本次安装报错分析
 
 原始环境中的关键信息是：
@@ -115,6 +119,8 @@ ImportError: Using SOCKS proxy, but the 'socksio' package is not installed
 3. 该版本解析到 `litellm` 源码包，而不是可直接安装的 wheel。
 4. `litellm` 的构建依赖尝试通过 `maturin`/`puccinialin` 准备 Rust 工具链。
 5. 当前网络配置使用 SOCKS 代理，但临时构建环境中没有 `socksio`，所以 Rust 下载过程失败。
+
+![图3：本次安装报错根因链](https://cdn.jsdelivr.net/gh/Fly0905/note-picture@main/mag/d3_error_chain.png)
 
 ### 推荐修复
 
@@ -244,8 +250,8 @@ openkb query "这篇论文的主要结论是什么？"
 
 ### 7.1 实战：导入一篇 arXiv 论文并查询
 
-下面以 arXiv 论文 `2509.11420` 为例，完整演示“空知识库查询 → 在线导入
-→ Wiki 编译 → 再次查询 → Web 页面检查”的过程。
+下面以 arXiv 论文 `2509.11420` 为例，完整演示"空知识库查询 → 在线导入
+→ Wiki 编译 → 再次查询 → Web 页面检查"的过程。
 
 #### 第一步：在导入前查询
 
@@ -314,6 +320,8 @@ Microsoft、SEC EDGAR、FRED、Yahoo Finance 等。
 > 日志里的 `no toc found` 不是失败。它表示 PageIndex 没找到可直接使用的
 > 目录页，随后使用 `process_no_toc` 自动推断结构。最终出现 `[OK]` 才是
 > 本次导入成功的判断依据。
+
+![图4：论文导入与编译流程图](https://cdn.jsdelivr.net/gh/Fly0905/note-picture@main/mag/d4_pipeline.png)
 
 #### 第三步：再次查询
 
@@ -527,7 +535,7 @@ http://127.0.0.1:7566/docs
 
 OpenKB 生成的 Wiki 是普通 Markdown 文件，并使用 `[[wikilinks]]` 建立链接。可以直接用 Obsidian 打开知识库中的 `wiki/` 目录：
 
-1. 在 Obsidian 中选择“打开文件夹作为仓库”；
+1. 在 Obsidian 中选择"打开文件夹作为仓库"；
 2. 选择 `my-kb/wiki/`；
 3. 浏览摘要、概念、实体和探索页面；
 4. 使用 Obsidian 图谱查看知识之间的连接。
@@ -738,6 +746,8 @@ openkb status
 openkb query "请概括文档的核心内容"
 openkb chat
 ```
+
+![图5：总结——OpenKB 四层结构图](https://cdn.jsdelivr.net/gh/Fly0905/note-picture@main/mag/d5_summary.png)
 
 ## 参考资料
 
