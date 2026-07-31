@@ -5,6 +5,8 @@
 
 ## 1. OpenKB 是什么
 
+![image-20260728180614079](https://cdn.jsdelivr.net/gh/Fly0905/note-picture@main/mag/image-20260728180614079.png)
+
 OpenKB 是一个开源的 LLM 知识库工具。它会把 PDF、Word、Markdown、PPT、Excel、CSV、网页等原始资料编译成互相链接的 Wiki，并支持：
 
 - 基于知识库进行单轮问答和多轮对话；
@@ -168,6 +170,8 @@ unset ALL_PROXY all_proxy HTTP_PROXY HTTPS_PROXY http_proxy https_proxy
 不要在不清楚公司或校园网络要求时永久删除代理配置。
 
 ## 5. 创建第一个知识库
+
+![image-20260728180709858](https://cdn.jsdelivr.net/gh/Fly0905/note-picture@main/mag/image-20260728180709858.png)
 
 ### 5.1 初始化
 
